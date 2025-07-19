@@ -1,0 +1,180 @@
+@page "/patients/create"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using PsyApp.UI.Data
+@using PsyApp.UI.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDoctorService DoctorService
+@inject IPatientService PatientService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Patient</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Create New Patient</h1>
+    <a href="/patients" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Patients
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-plus"></i> Patient Information</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="Input" OnValidSubmit="CreatePatientAsync" FormName="createPatient">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-danger" />
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> @errorMessage
+                        </div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" 
+                                           placeholder="First Name" aria-required="true" />
+                                <label for="Input.Name">First Name</label>
+                                <ValidationMessage For="() => Input.Name" class="text-danger" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Input.LastName" id="Input.LastName" class="form-control" 
+                                           placeholder="Last Name" aria-required="true" />
+                                <label for="Input.LastName">Last Name</label>
+                                <ValidationMessage For="() => Input.LastName" class="text-danger" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" 
+                                           placeholder="email@example.com" type="email" />
+                                <label for="Input.Email">Email (Optional)</label>
+                                <ValidationMessage For="() => Input.Email" class="text-danger" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" 
+                                           placeholder="Phone Number" />
+                                <label for="Input.PhoneNumber">Phone Number (Optional)</label>
+                                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/patients" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            <i class="fas fa-save"></i> Create Patient
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+    
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private int? currentDoctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user != null)
+            {
+                currentDoctorId = await DoctorService.GetCurrentDoctorIdAsync(user.Id);
+            }
+        }
+
+        if (!currentDoctorId.HasValue)
+        {
+            errorMessage = "You must be logged in as a doctor to create patients.";
+        }
+    }
+
+    private async Task CreatePatientAsync()
+    {
+        if (!currentDoctorId.HasValue)
+        {
+            errorMessage = "You must be logged in as a doctor to create patients.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            var patient = new Patient
+            {
+                Name = Input.Name,
+                LastName = Input.LastName,
+                Email = string.IsNullOrWhiteSpace(Input.Email) ? null : Input.Email,
+                PhoneNumber = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : Input.PhoneNumber,
+                DoctorId = currentDoctorId.Value
+            };
+
+            await PatientService.CreatePatientAsync(patient);
+            Navigation.NavigateTo("/patients");
+        }
+        catch (Exception)
+        {
+            errorMessage = "An error occurred while creating the patient. Please try again.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(100, ErrorMessage = "First name must be no more than 100 characters.")]
+        [Display(Name = "First Name")]
+        public string Name { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "Last name must be no more than 100 characters.")]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [EmailAddress]
+        [StringLength(256, ErrorMessage = "Email must be no more than 256 characters.")]
+        [Display(Name = "Email")]
+        public string? Email { get; set; }
+
+        [StringLength(15, ErrorMessage = "Phone number must be no more than 15 characters.")]
+        [Display(Name = "Phone Number")]
+        public string? PhoneNumber { get; set; }
+    }
+}

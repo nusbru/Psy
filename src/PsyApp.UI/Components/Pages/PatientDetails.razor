@@ -1,0 +1,165 @@
+@page "/patients/{id:int}"
+@using Microsoft.AspNetCore.Identity
+@using PsyApp.UI.Data
+@using PsyApp.UI.Services
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDoctorService DoctorService
+@inject IPatientService PatientService
+@inject NavigationManager Navigation
+
+<PageTitle>Patient Details</PageTitle>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading patient details...</p>
+    </div>
+}
+else if (patient == null)
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        Patient not found or you don't have permission to view this patient.
+    </div>
+    <a href="/patients" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Patients
+    </a>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>@patient.FullName</h1>
+        <div class="btn-group">
+            <a href="/patients/@patient.Id/edit" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a href="/patients" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-user"></i> Patient Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">First Name</label>
+                                <p class="fw-bold">@patient.Name</p>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Last Name</label>
+                                <p class="fw-bold">@patient.LastName</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Email</label>
+                                @if (!string.IsNullOrEmpty(patient.Email))
+                                {
+                                    <p class="fw-bold">
+                                        <a href="mailto:@patient.Email">@patient.Email</a>
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">Not provided</p>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Phone Number</label>
+                                @if (!string.IsNullOrEmpty(patient.PhoneNumber))
+                                {
+                                    <p class="fw-bold">
+                                        <a href="tel:@patient.PhoneNumber">@patient.PhoneNumber</a>
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">Not provided</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Record Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Patient ID</label>
+                        <p class="fw-bold">#@patient.Id</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Created</label>
+                        <p class="fw-bold">@patient.CreatedAt.ToString("MMM dd, yyyy 'at' h:mm tt")</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Last Updated</label>
+                        <p class="fw-bold">@patient.UpdatedAt.ToString("MMM dd, yyyy 'at' h:mm tt")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private Patient? patient;
+    private bool isLoading = true;
+    private int? currentDoctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientAsync();
+    }
+
+    private async Task LoadPatientAsync()
+    {
+        isLoading = true;
+        
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user != null)
+            {
+                currentDoctorId = await DoctorService.GetCurrentDoctorIdAsync(user.Id);
+                if (currentDoctorId.HasValue)
+                {
+                    patient = await PatientService.GetPatientByIdAsync(Id, currentDoctorId.Value);
+                }
+            }
+        }
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+}

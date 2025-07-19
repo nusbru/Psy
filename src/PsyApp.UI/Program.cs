@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PsyApp.UI.Components;
 using PsyApp.UI.Components.Account;
 using PsyApp.UI.Data;
+using PsyApp.UI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,10 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Register custom services
+builder.Services.AddScoped<IPatientService, PatientService>();
+builder.Services.AddScoped<IDoctorService, DoctorService>();
 
 var app = builder.Build();
 

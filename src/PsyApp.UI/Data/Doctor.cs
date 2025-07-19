@@ -33,5 +33,8 @@ public class Doctor
     public string ApplicationUserId { get; set; } = string.Empty;
     public ApplicationUser ApplicationUser { get; set; } = null!;
     
+    // Navigation property to Patients
+    public ICollection<Patient> Patients { get; set; } = new List<Patient>();
+    
     public string FullName => $"{FirstName} {LastName}";
 }

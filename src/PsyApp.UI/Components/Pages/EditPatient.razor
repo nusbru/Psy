@@ -1,0 +1,238 @@
+@page "/patients/{id:int}/edit"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using PsyApp.UI.Data
+@using PsyApp.UI.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDoctorService DoctorService
+@inject IPatientService PatientService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Patient</PageTitle>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading patient details...</p>
+    </div>
+}
+else if (patient == null)
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        Patient not found or you don't have permission to edit this patient.
+    </div>
+    <a href="/patients" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Patients
+    </a>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Edit @patient.FullName</h1>
+        <div class="btn-group">
+            <a href="/patients/@patient.Id" class="btn btn-outline-secondary">
+                <i class="fas fa-eye"></i> View Details
+            </a>
+            <a href="/patients" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-user-edit"></i> Edit Patient Information</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="Input" OnValidSubmit="UpdatePatientAsync" FormName="editPatient">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="alert alert-danger" />
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> @errorMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> @successMessage
+                            </div>
+                        }
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" 
+                                               placeholder="First Name" aria-required="true" />
+                                    <label for="Input.Name">First Name</label>
+                                    <ValidationMessage For="() => Input.Name" class="text-danger" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="Input.LastName" id="Input.LastName" class="form-control" 
+                                               placeholder="Last Name" aria-required="true" />
+                                    <label for="Input.LastName">Last Name</label>
+                                    <ValidationMessage For="() => Input.LastName" class="text-danger" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" 
+                                               placeholder="email@example.com" type="email" />
+                                    <label for="Input.Email">Email (Optional)</label>
+                                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" 
+                                               placeholder="Phone Number" />
+                                    <label for="Input.PhoneNumber">Phone Number (Optional)</label>
+                                    <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/patients/@patient.Id" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                <i class="fas fa-save"></i> Update Patient
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+    
+    private Patient? patient;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private int? currentDoctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientAsync();
+    }
+
+    private async Task LoadPatientAsync()
+    {
+        isLoading = true;
+        
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user != null)
+            {
+                currentDoctorId = await DoctorService.GetCurrentDoctorIdAsync(user.Id);
+                if (currentDoctorId.HasValue)
+                {
+                    patient = await PatientService.GetPatientByIdAsync(Id, currentDoctorId.Value);
+                    
+                    if (patient != null)
+                    {
+                        // Populate the form with existing data
+                        Input.Name = patient.Name;
+                        Input.LastName = patient.LastName;
+                        Input.Email = patient.Email;
+                        Input.PhoneNumber = patient.PhoneNumber;
+                    }
+                }
+            }
+        }
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task UpdatePatientAsync()
+    {
+        if (patient == null || !currentDoctorId.HasValue)
+        {
+            errorMessage = "Patient not found or access denied.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            patient.Name = Input.Name;
+            patient.LastName = Input.LastName;
+            patient.Email = string.IsNullOrWhiteSpace(Input.Email) ? null : Input.Email;
+            patient.PhoneNumber = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : Input.PhoneNumber;
+
+            await PatientService.UpdatePatientAsync(patient);
+            successMessage = "Patient updated successfully!";
+            
+            // Redirect after a short delay to show the success message
+            await Task.Delay(2000);
+            Navigation.NavigateTo($"/patients/{patient.Id}");
+        }
+        catch (Exception)
+        {
+            errorMessage = "An error occurred while updating the patient. Please try again.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(100, ErrorMessage = "First name must be no more than 100 characters.")]
+        [Display(Name = "First Name")]
+        public string Name { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "Last name must be no more than 100 characters.")]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [EmailAddress]
+        [StringLength(256, ErrorMessage = "Email must be no more than 256 characters.")]
+        [Display(Name = "Email")]
+        public string? Email { get; set; }
+
+        [StringLength(15, ErrorMessage = "Phone number must be no more than 15 characters.")]
+        [Display(Name = "Phone Number")]
+        public string? PhoneNumber { get; set; }
+    }
+}

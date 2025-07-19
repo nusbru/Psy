@@ -6,6 +6,7 @@ namespace PsyApp.UI.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Doctor> Doctors { get; set; }
+    public DbSet<Patient> Patients { get; set; }
     
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -17,5 +18,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithOne(d => d.ApplicationUser)
             .HasForeignKey<Doctor>(d => d.ApplicationUserId)
             .OnDelete(DeleteBehavior.Cascade);
+            
+        // Configure one-to-many relationship between Doctor and Patient
+        builder.Entity<Patient>()
+            .HasOne(p => p.Doctor)
+            .WithMany(d => d.Patients)
+            .HasForeignKey(p => p.DoctorId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        // Configure indexes for better performance
+        builder.Entity<Patient>()
+            .HasIndex(p => p.DoctorId);
     }
 }
