@@ -5,7 +5,10 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Components.Forms
 @using PsyApp.UI.Data
+@using PsyApp.UI.Components.Account.Shared
+@using PsyApp.UI.Components.Account
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
@@ -14,38 +17,80 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject ApplicationDbContext DbContext
 
 <PageTitle>Register</PageTitle>
 
-<h1>Register</h1>
+<h1>Register as Doctor</h1>
 
 <div class="row">
-    <div class="col-lg-6">
+    <div class="col-lg-8">
         <StatusMessage Message="@Message" />
         <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
+            <h2>Create a new doctor account.</h2>
             <hr />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Account Information</h4>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                        <label for="Input.Email">Email</label>
+                        <ValidationMessage For="() => Input.Email" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                        <label for="Input.Password">Password</label>
+                        <ValidationMessage For="() => Input.Password" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                        <label for="Input.ConfirmPassword">Confirm Password</label>
+                        <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>Doctor Information</h4>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.FirstName" id="Input.FirstName" class="form-control" aria-required="true" placeholder="First Name" />
+                        <label for="Input.FirstName">First Name</label>
+                        <ValidationMessage For="() => Input.FirstName" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.LastName" id="Input.LastName" class="form-control" aria-required="true" placeholder="Last Name" />
+                        <label for="Input.LastName">Last Name</label>
+                        <ValidationMessage For="() => Input.LastName" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.LicenseNumber" id="Input.LicenseNumber" class="form-control" aria-required="true" placeholder="License Number" />
+                        <label for="Input.LicenseNumber">License Number</label>
+                        <ValidationMessage For="() => Input.LicenseNumber" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.Specialization" id="Input.Specialization" class="form-control" placeholder="Specialization" />
+                        <label for="Input.Specialization">Specialization</label>
+                        <ValidationMessage For="() => Input.Specialization" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Phone Number" />
+                        <label for="Input.PhoneNumber">Phone Number</label>
+                        <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputTextArea @bind-Value="Input.Bio" id="Input.Bio" class="form-control" placeholder="Brief bio..." rows="3" />
+                        <label for="Input.Bio">Bio</label>
+                        <ValidationMessage For="() => Input.Bio" class="text-danger" />
+                    </div>
+                </div>
             </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+            
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Register as Doctor</button>
         </EditForm>
     </div>
-    <div class="col-lg-4 col-lg-offset-2">
+    <div class="col-lg-4">
         <section>
             <h3>Use another service to register.</h3>
             <hr />
@@ -72,6 +117,7 @@
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
         await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        
         var result = await UserManager.CreateAsync(user, Input.Password);
 
         if (!result.Succeeded)
@@ -80,7 +126,22 @@
             return;
         }
 
-        Logger.LogInformation("User created a new account with password.");
+        Logger.LogInformation("Doctor user created a new account with password.");
+
+        // Create doctor profile
+        var doctor = new Doctor
+        {
+            ApplicationUserId = user.Id,
+            FirstName = Input.FirstName,
+            LastName = Input.LastName,
+            LicenseNumber = Input.LicenseNumber,
+            Specialization = Input.Specialization,
+            PhoneNumber = Input.PhoneNumber,
+            Bio = Input.Bio
+        };
+
+        DbContext.Doctors.Add(doctor);
+        await DbContext.SaveChangesAsync();
 
         var userId = await UserManager.GetUserIdAsync(user);
         var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
@@ -141,5 +202,32 @@
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "First Name")]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [Required]
+        [StringLength(20)]
+        [Display(Name = "License Number")]
+        public string LicenseNumber { get; set; } = "";
+
+        [StringLength(100)]
+        [Display(Name = "Specialization")]
+        public string? Specialization { get; set; }
+
+        [StringLength(15)]
+        [Display(Name = "Phone Number")]
+        public string? PhoneNumber { get; set; }
+
+        [StringLength(500)]
+        [Display(Name = "Bio")]
+        public string? Bio { get; set; }
     }
 }
